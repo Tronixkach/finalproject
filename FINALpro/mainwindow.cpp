@@ -19,14 +19,15 @@ void ThreadWorker::run()
 
         while(n > 1)
         {
-            if(n % 2 == 0) {
-                n /= 2;
+            if((n & 1) == 0) {
+                n >>= 1;
             } else {
                 if (n > (ULLONG_MAX - 1) / 3) {
                     localOverflow = true;
                     break;
                 }
-                n = 3 * n + 1;
+                n = (3 * n + 1) >> 1;
+                len++;
             }
             len++;
         }
@@ -97,18 +98,26 @@ void MainWindow::startCalc()
 void MainWindow::stopCalc()
 {
     isstopped.store(true, std::memory_order_relaxed);
-    ui->textEdit->append("Обчислення закінченно користувачем");
+
+    ui->textEdit->append("\nОбчислення скасовано користувачем.");
 }
 
 void MainWindow::TableOfThreads()
 {
     if (workers.empty()) return;
-
     for(auto w : workers)
     {
         if(!w->isFinished()) return;
     }
 
+    if (isstopped.load(std::memory_order_relaxed)) {
+        for(auto w : workers) {
+            w->deleteLater();
+        }
+        workers.clear();
+        ResetUI();
+        return;
+    }
     qint64 elapsed = timer.elapsed();
     unsigned long long BestGlobalNum = 0;
     unsigned long GlobalLenght = 0;
